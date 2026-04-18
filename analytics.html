@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>gravy-plane.ca analytics</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #fafafa;
+    --card: #fff;
+    --ink: #1f2328;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --border: #e5e7eb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                            Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--ink);
+  }
+  header {
+    padding: 24px 32px; background: var(--card);
+    border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  header h1 { margin: 0; font-size: 20px; font-weight: 600; }
+  header .meta { color: var(--muted); font-size: 13px; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 32px; }
+  .cards {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 16px; margin-bottom: 24px;
+  }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px;
+  }
+  .card .label { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .card .value { font-size: 28px; font-weight: 600; margin-top: 4px; }
+  .card .sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .panel {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px; margin-bottom: 24px;
+  }
+  .panel h2 { margin: 0 0 12px; font-size: 15px; font-weight: 600; }
+  canvas { width: 100% !important; height: 300px !important; }
+  .geo { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .geo-list { max-height: 380px; overflow-y: auto; }
+  .geo-row {
+    display: flex; justify-content: space-between;
+    padding: 8px 10px; border-radius: 6px; cursor: pointer;
+    border: 1px solid transparent;
+  }
+  .geo-row:hover { background: #f3f4f6; }
+  .geo-row.active { background: #eff6ff; border-color: #bfdbfe; }
+  .geo-row.header { cursor: default; color: var(--muted); font-size: 12px;
+                    text-transform: uppercase; letter-spacing: 0.04em; }
+  .geo-row.header:hover { background: transparent; }
+  .geo-count { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .auth {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; align-items: center; justify-content: center; z-index: 10;
+  }
+  .auth form {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 24px; width: 320px;
+  }
+  .auth h2 { margin: 0 0 12px; font-size: 16px; }
+  .auth input {
+    width: 100%; padding: 8px 10px; font-size: 14px;
+    border: 1px solid var(--border); border-radius: 6px;
+  }
+  .auth button {
+    margin-top: 12px; width: 100%; padding: 8px; font-size: 14px;
+    background: var(--accent); color: #fff; border: 0;
+    border-radius: 6px; cursor: pointer;
+  }
+  .auth .err { color: #dc2626; font-size: 13px; margin-top: 8px; min-height: 1em; }
+  .hidden { display: none; }
+  @media (max-width: 720px) {
+    .cards { grid-template-columns: repeat(2, 1fr); }
+    .geo { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div id="auth" class="auth">
+  <form id="pwd-form">
+    <h2>gravy-plane.ca analytics</h2>
+    <input id="pwd" type="password" placeholder="Password" autofocus>
+    <button type="submit">Unlock</button>
+    <div id="pwd-err" class="err"></div>
+  </form>
+</div>
+
+<div id="app" class="hidden">
+  <header>
+    <h1>gravy-plane.ca analytics</h1>
+    <span class="meta">Data through 2026-04-17</span>
+  </header>
+  <main>
+    <section class="cards">
+      <div class="card"><div class="label">Page views</div>
+        <div id="card-views" class="value">—</div>
+        <div id="card-views-sub" class="sub">lifetime</div></div>
+      <div class="card"><div class="label">Unique visitors</div>
+        <div id="card-visitors" class="value">—</div>
+        <div class="sub">sum of daily uniques</div></div>
+      <div class="card"><div class="label">Bandwidth</div>
+        <div id="card-bandwidth" class="value">—</div>
+        <div class="sub">total served</div></div>
+      <div class="card"><div class="label">Threats blocked</div>
+        <div id="card-threats" class="value">—</div>
+        <div class="sub">lifetime</div></div>
+    </section>
+
+    <section class="panel">
+      <h2>Views and visitors over time</h2>
+      <canvas id="chart-timeseries"></canvas>
+    </section>
+
+    <section class="panel">
+      <h2>Geography</h2>
+      <div class="geo">
+        <div>
+          <div class="geo-row header"><span>Country</span><span>Requests</span></div>
+          <div id="country-list" class="geo-list"></div>
+        </div>
+        <div>
+          <div class="geo-row header"><span id="sub-title">Subdivision</span><span>Requests</span></div>
+          <div id="subdivision-list" class="geo-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>HTTP response codes</h2>
+      <div id="status-list"></div>
+    </section>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+// ---- Config (generated by fetch_analytics.py) -------------------------
+const PASSWORD_HASH = "a46a1fea17aa97ed13f66ac7d19e5c8162235af0ab5ab74c20ed468570171aa9";
+const ROWS = [{"date":"2026-03-19","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-03-20","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-03-21","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-03-22","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-03-23","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-03-24","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-03-25","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-03-26","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-03-27","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-03-28","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-03-29","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-03-30","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-03-31","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-04-01","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-04-02","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-04-03","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-04-04","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-04-05","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-04-06","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-04-07","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-04-08","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-04-09","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-04-10","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-04-11","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-04-12","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-04-13","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-04-14","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-04-15","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-04-16","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}},{"date":"2026-04-17","page_views":0,"unique_visitors":0,"bandwidth_bytes":0,"threats_blocked":0,"status_codes":{},"countries":{},"subdivisions":{}}];
+
+// ---- Auth -------------------------------------------------------------
+async function sha256Hex(s) {
+  const buf = new TextEncoder().encode(s);
+  const hash = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(hash))
+    .map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+document.getElementById("pwd-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const input = document.getElementById("pwd").value;
+  const h = await sha256Hex(input);
+  if (h === PASSWORD_HASH) {
+    document.getElementById("auth").classList.add("hidden");
+    document.getElementById("app").classList.remove("hidden");
+    render();
+  } else {
+    document.getElementById("pwd-err").textContent = "Incorrect password.";
+  }
+});
+
+// ---- Formatting -------------------------------------------------------
+function fmtNum(n) {
+  if (n === null || n === undefined) return "—";
+  return n.toLocaleString();
+}
+function fmtBytes(n) {
+  if (!n) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let i = 0;
+  while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+  return n.toFixed(i === 0 ? 0 : 1) + " " + units[i];
+}
+
+// ---- Render -----------------------------------------------------------
+function render() {
+  if (!ROWS.length) {
+    document.querySelector("main").innerHTML =
+      "<p style='color:#6b7280'>No data yet. The first scheduled run will populate this dashboard.</p>";
+    return;
+  }
+
+  // Summary cards
+  const totalViews = ROWS.reduce((a, r) => a + (r.page_views || 0), 0);
+  const totalVisitors = ROWS.reduce((a, r) => a + (r.unique_visitors || 0), 0);
+  const totalBytes = ROWS.reduce((a, r) => a + (r.bandwidth_bytes || 0), 0);
+  const totalThreats = ROWS.reduce((a, r) => a + (r.threats_blocked || 0), 0);
+  document.getElementById("card-views").textContent = fmtNum(totalViews);
+  document.getElementById("card-visitors").textContent = fmtNum(totalVisitors);
+  document.getElementById("card-bandwidth").textContent = fmtBytes(totalBytes);
+  document.getElementById("card-threats").textContent = fmtNum(totalThreats);
+  document.getElementById("card-views-sub").textContent =
+    "lifetime, " + ROWS.length + " day" + (ROWS.length === 1 ? "" : "s");
+
+  // Time-series chart
+  const labels = ROWS.map(r => r.date);
+  new Chart(document.getElementById("chart-timeseries"), {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        { label: "Page views", data: ROWS.map(r => r.page_views || 0),
+           borderColor: "#2563eb", backgroundColor: "rgba(37,99,235,0.1)",
+           tension: 0.2, fill: true },
+        { label: "Unique visitors", data: ROWS.map(r => r.unique_visitors || 0),
+           borderColor: "#16a34a", backgroundColor: "rgba(22,163,74,0.1)",
+           tension: 0.2, fill: true },
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false,
+               interaction: { mode: "index", intersect: false } }
+  });
+
+  // Geography — aggregate country totals across all days
+  const countryTotals = {};
+  const subdivisionTotals = {};  // country -> region -> requests
+  for (const r of ROWS) {
+    for (const [country, c] of Object.entries(r.countries || {})) {
+      countryTotals[country] = (countryTotals[country] || 0) + (c.requests || 0);
+    }
+    for (const [country, regions] of Object.entries(r.subdivisions || {})) {
+      if (!subdivisionTotals[country]) subdivisionTotals[country] = {};
+      for (const [region, s] of Object.entries(regions)) {
+        subdivisionTotals[country][region] =
+          (subdivisionTotals[country][region] || 0) + (s.requests || 0);
+      }
+    }
+  }
+
+  const sortedCountries = Object.entries(countryTotals)
+    .sort((a, b) => b[1] - a[1]);
+  const list = document.getElementById("country-list");
+  list.innerHTML = "";
+  sortedCountries.forEach(([c, n], i) => {
+    const row = document.createElement("div");
+    row.className = "geo-row";
+    row.innerHTML = `<span>${c}</span><span class="geo-count">${fmtNum(n)}</span>`;
+    row.addEventListener("click", () => showSubdivisions(c, subdivisionTotals, row));
+    list.appendChild(row);
+    if (i === 0) row.click();  // auto-select top country
+  });
+
+  // Status codes (sum across history)
+  const statusTotals = {};
+  for (const r of ROWS) {
+    for (const [code, n] of Object.entries(r.status_codes || {})) {
+      statusTotals[code] = (statusTotals[code] || 0) + n;
+    }
+  }
+  const statusDiv = document.getElementById("status-list");
+  statusDiv.innerHTML = "";
+  Object.entries(statusTotals).sort((a, b) => b[1] - a[1]).forEach(([code, n]) => {
+    const row = document.createElement("div");
+    row.className = "geo-row";
+    row.innerHTML = `<span>HTTP ${code}</span><span class="geo-count">${fmtNum(n)}</span>`;
+    statusDiv.appendChild(row);
+  });
+}
+
+function showSubdivisions(country, subs, clickedRow) {
+  document.querySelectorAll("#country-list .geo-row").forEach(r => r.classList.remove("active"));
+  clickedRow.classList.add("active");
+  document.getElementById("sub-title").textContent = country + " — subdivisions";
+  const regions = subs[country] || {};
+  const list = document.getElementById("subdivision-list");
+  list.innerHTML = "";
+  const sorted = Object.entries(regions).sort((a, b) => b[1] - a[1]);
+  if (!sorted.length) {
+    list.innerHTML = "<div class='geo-row'><span style='color:#6b7280'>No subdivision data</span><span></span></div>";
+    return;
+  }
+  sorted.forEach(([region, n]) => {
+    const row = document.createElement("div");
+    row.className = "geo-row";
+    row.innerHTML = `<span>${region}</span><span class="geo-count">${fmtNum(n)}</span>`;
+    list.appendChild(row);
+  });
+}
+</script>
+</body>
+</html>
