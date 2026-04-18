@@ -57,6 +57,7 @@
                     text-transform: uppercase; letter-spacing: 0.04em; }
   .geo-row.header:hover { background: transparent; }
   .geo-count { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .status-desc { color: var(--muted); font-size: 12px; margin-left: 8px; }
   .auth {
     position: fixed; inset: 0; background: var(--bg);
     display: flex; align-items: center; justify-content: center; z-index: 10;
@@ -250,6 +251,37 @@ function render() {
   });
 
   // Status codes (sum across history)
+  const STATUS_DESCRIPTIONS = {
+    "200": "OK",
+    "201": "Created",
+    "204": "No Content",
+    "206": "Partial Content",
+    "301": "Moved Permanently",
+    "302": "Found",
+    "304": "Not Modified",
+    "307": "Temporary Redirect",
+    "308": "Permanent Redirect",
+    "400": "Bad Request",
+    "401": "Unauthorized",
+    "403": "Forbidden",
+    "404": "Not Found",
+    "405": "Method Not Allowed",
+    "408": "Request Timeout",
+    "410": "Gone",
+    "429": "Too Many Requests",
+    "499": "Client Closed Request",
+    "500": "Internal Server Error",
+    "502": "Bad Gateway",
+    "503": "Service Unavailable",
+    "504": "Gateway Timeout",
+    "520": "Web Server Returned an Unknown Error",
+    "521": "Web Server Is Down",
+    "522": "Connection Timed Out",
+    "523": "Origin Is Unreachable",
+    "524": "A Timeout Occurred",
+    "525": "SSL Handshake Failed",
+    "526": "Invalid SSL Certificate"
+  };
   const statusTotals = {};
   for (const r of ROWS) {
     for (const [code, n] of Object.entries(r.status_codes || {})) {
@@ -261,7 +293,8 @@ function render() {
   Object.entries(statusTotals).sort((a, b) => b[1] - a[1]).forEach(([code, n]) => {
     const row = document.createElement("div");
     row.className = "geo-row";
-    row.innerHTML = `<span>HTTP ${code}</span><span class="geo-count">${fmtNum(n)}</span>`;
+    const desc = STATUS_DESCRIPTIONS[code] || "";
+    row.innerHTML = `<span>HTTP ${code}<span class="status-desc">${desc}</span></span><span class="geo-count">${fmtNum(n)}</span>`;
     statusDiv.appendChild(row);
   });
 }
